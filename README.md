@@ -19,10 +19,12 @@ supported by Apple. Apple Music and MusicKit are trademarks of Apple Inc.
   their page; shuffle, repeat, the queue, and the output device to play on.
 - **Item menu** (right-click or M): play next, add to queue, add to library,
   favorite, suggest less, add to a playlist or a new one.
+- **Visualizer** (V): the artwork's colors flowing through a grid of
+  characters, moving to the bass, mids and highs of what's playing.
 - **Autoplay**: keep playing similar music when the queue ends (∞ in the
   queue, or in Settings).
-- **Settings** (Ctrl+,): autoplay, audio quality, output device, Apple Music
-  access, sign out.
+- **Settings** (Ctrl+,): autoplay, audio quality, the visualizer's controls,
+  output device, Apple Music access, sign out.
 
 ## How it works
 
@@ -61,7 +63,7 @@ doesn't work with Apple's sign-in page, so Omasic hides passkeys from it.
   Omasic looks for it in `/opt/WidevineCdm`, `/usr/lib/chromium/WidevineCdm`,
   `/opt/google/chrome/WidevineCdm` and `~/.local/lib`, and says so in the window
   when it can't find it.
-- Qt 6 with WebEngine and WebChannel.
+- Qt 6 with WebEngine and WebChannel, and Qt Shader Tools to build.
 
 ## Keyboard
 
@@ -75,6 +77,8 @@ doesn't work with Apple's sign-in page, so Omasic hides passkeys from it.
 | + / − | Volume up or down |
 | U | Show or hide the queue |
 | O | Choose the output device |
+| V | Show or hide the visualizer |
+| G | Visualizer: characters or plain light |
 | A / Shift+A | Go to the playing album / artist |
 | / or Ctrl+F | Search |
 | 2–8 | Home, Browse, Recently Added, Playlists, Albums, Artists, Songs |
@@ -92,6 +96,10 @@ Media keys, `playerctl` and the Omarchy bar control Omasic over MPRIS.
 The output device is switched with `pactl` (from `libpulse`): Qt WebEngine
 plays to the system default, and Omasic moves its own stream to the device you
 pick.
+
+The visualizer hears the music the same way: playback is DRM-protected inside
+the web engine, so `pw-cat` (from `pipewire`) records Omasic's own stream, and
+only that one, while the visualizer shows.
 
 ## Build
 

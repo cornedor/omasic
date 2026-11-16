@@ -6,8 +6,9 @@ arch=('x86_64' 'aarch64')
 license=('MIT')
 depends=('qt6-base' 'qt6-declarative' 'qt6-wayland' 'qt6-webengine' 'qt6-webchannel' 'openssl')
 optdepends=('widevine: playing Apple Music streams, which are DRM-protected'
-            'libpulse: choosing the output device (pactl)')
-makedepends=('gcc' 'make')
+            'libpulse: choosing the output device (pactl)'
+            'pipewire: the visualizer moving to the music (pw-cat)')
+makedepends=('gcc' 'make' 'qt6-shadertools')
 source=()
 sha256sums=()
 

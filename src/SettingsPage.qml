@@ -2,9 +2,12 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-// Playback, output, account and version.
+// Playback, visualizer, output, account and version.
 FocusScope {
     id: root
+
+    property bool visualizerControls: true
+    signal visualizerControlsToggled()
 
     Component.onCompleted: outputs.refresh()
 
@@ -143,6 +146,18 @@ FocusScope {
                     options: [{ value: 256, label: qsTr("High") }, { value: 64, label: qsTr("Standard") }]
                     value: player.bitrate
                     onChosen: value => player.bitrate = value
+                }
+            }
+
+            Group {
+                title: qsTr("Visualizer")
+                Row {
+                    label: qsTr("Controls")
+                    detail: qsTr("Show favorite, previous, play and next when the pointer moves over the visualizer.")
+                    ThemedSwitch {
+                        checked: root.visualizerControls
+                        onToggled: root.visualizerControlsToggled()
+                    }
                 }
             }
 

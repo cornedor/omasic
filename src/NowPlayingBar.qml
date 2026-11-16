@@ -13,6 +13,7 @@ Rectangle {
     signal albumRequested()
     signal artistRequested()
     signal queueToggled()
+    signal visualizerToggled()
     signal menuRequested(var item, real x, real y)
 
     function requestMenu(source, mouse) {
@@ -240,11 +241,16 @@ Rectangle {
             }
         }
 
-        // Queue, output and volume.
+        // Visualizer, queue, output and volume.
         RowLayout {
-            Layout.preferredWidth: 240
-            Layout.maximumWidth: 240
+            Layout.preferredWidth: 280
+            Layout.maximumWidth: 280
             spacing: 6
+            IconButton {
+                glyph: "visualizer"
+                tip: qsTr("Visualizer (V)")
+                onClicked: bar.visualizerToggled()
+            }
             IconButton {
                 glyph: "queue"
                 checked: bar.queueVisible
