@@ -1,3 +1,4 @@
+import QtCore
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Material
@@ -25,6 +26,36 @@ ApplicationWindow {
     readonly property bool typing: sidebar.searchField.activeFocus
     readonly property bool signedIn: player.ready && player.authorized && !developerToken.needsSetup
     property bool queueVisible: false
+    property bool visualizerVisible: false
+    Settings {
+        id: visualizerSettings
+        category: "visualizer"
+        property bool controls: true
+    }
+
+    // The playing track as the music client knows items, and whether it's a
+    // favorite, for the heart in the visualizer. Tracks that are only in
+    // the library ("i." ids) have no catalog entry to favorite.
+    readonly property string playingId: player.current.playId || ""
+    readonly property var playingItem: {
+        const item = Object.assign({}, player.current, { id: playingId })
+        if (playingId !== "" && !playingId.startsWith("i."))
+            item.catalogId = playingId
+        return item
+    }
+    property var playingState: ({})
+    function loadPlayingState() {
+        playingState = ({})
+        if (visualizerVisible && playingItem.catalogId)
+            music.loadState(playingItem)
+    }
+    onPlayingIdChanged: loadPlayingState()
+    onVisualizerVisibleChanged: loadPlayingState()
+    function togglePlayingFavorite() {
+        const favorite = !playingState.inFavorites
+        playingState = Object.assign({}, playingState, { inFavorites: favorite })
+        music.setFavorite(playingItem, favorite)
+    }
 
     function showSection(key) {
         sidebar.current = key
@@ -88,6 +119,14 @@ ApplicationWindow {
             win.notice = message
             win.noticeOk = ok
             noticeTimer.restart()
+            // The heart was turned before the answer came; a refusal turns
+            // it back.
+            if (!ok)
+                win.loadPlayingState()
+        }
+        function onStateLoaded(id, loaded) {
+            if (id !== "" && id === win.playingId)
+                win.playingState = loaded
         }
         // Library pages load again on their next visit.
         function onLibraryChanged() {
@@ -97,7 +136,9 @@ ApplicationWindow {
     }
 
     function back() {
-        if (stack.depth > 1)
+        if (visualizerVisible)
+            visualizerVisible = false
+        else if (stack.depth > 1)
             stack.pop()
     }
 
@@ -115,6 +156,7 @@ ApplicationWindow {
 
     onSignedInChanged: {
         sectionPages = {}
+        visualizerVisible = false
         if (signedIn)
             showSection("home")
         else
@@ -139,6 +181,8 @@ ApplicationWindow {
     Shortcut { sequence: "R"; context: Qt.ApplicationShortcut; enabled: !win.typing; onActivated: player.cycleRepeat() }
     Shortcut { sequence: "U"; context: Qt.ApplicationShortcut; enabled: !win.typing && win.signedIn; onActivated: win.queueVisible = !win.queueVisible }
     Shortcut { sequence: "O"; context: Qt.ApplicationShortcut; enabled: !win.typing && win.signedIn; onActivated: nowPlaying.toggleOutputs() }
+    Shortcut { sequence: "V"; context: Qt.ApplicationShortcut; enabled: !win.typing && win.signedIn; onActivated: win.visualizerVisible = !win.visualizerVisible }
+    Shortcut { sequence: "G"; context: Qt.ApplicationShortcut; enabled: !win.typing && win.visualizerVisible; onActivated: visualizer.glyphs = !visualizer.glyphs }
     Shortcut {
         sequences: ["M", "Menu", "Shift+F10"]
         context: Qt.ApplicationShortcut
@@ -178,7 +222,10 @@ ApplicationWindow {
 
     Component {
         id: settingsComponent
-        SettingsPage {}
+        SettingsPage {
+            visualizerControls: visualizerSettings.controls
+            onVisualizerControlsToggled: visualizerSettings.controls = !visualizerSettings.controls
+        }
     }
 
     Component {
@@ -245,11 +292,51 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 queueVisible: win.queueVisible
                 onQueueToggled: win.queueVisible = !win.queueVisible
+                onVisualizerToggled: win.visualizerVisible = !win.visualizerVisible
                 onAlbumRequested: win.openFromTrack("album")
                 onArtistRequested: win.openFromTrack("artist")
                 onMenuRequested: (item, x, y) => win.showMenu(item, x, y)
             }
         }
+
+        // Over the whole window, so nothing but the music is left to look at.
+        Visualizer {
+            id: visualizer
+            anchors.fill: parent
+            visible: opacity > 0
+            opacity: win.visualizerVisible ? 1 : 0
+            bass: levels.bass
+            mid: levels.mid
+            high: levels.high
+            beat: levels.beat
+            first: artworkPalette.first
+            second: artworkPalette.second
+            third: artworkPalette.third
+            title: player.current.title || ""
+            artist: player.current.artist || ""
+            problem: levels.error
+            playing: player.playing
+            canPrevious: player.canPrevious
+            canNext: player.canNext
+            canFavorite: win.playingState.known === true
+            favorite: win.playingState.inFavorites === true
+            controlsEnabled: visualizerSettings.controls
+            onCloseRequested: win.visualizerVisible = false
+            onPreviousRequested: player.previous()
+            onPlayToggled: player.togglePlay()
+            onNextRequested: player.next()
+            onFavoriteToggled: win.togglePlayingFavorite()
+
+            Behavior on opacity { NumberAnimation { duration: 400 } }
+        }
+        // It listens and reads the artwork only while it shows.
+        Binding { target: levels; property: "active"; value: win.visualizerVisible }
+        Binding {
+            target: artworkPalette
+            property: "source"
+            value: win.visualizerVisible && player.current.artwork ? music.artworkUrl(player.current.artwork, 64) : ""
+        }
+        Binding { target: artworkPalette; property: "fallback"; value: theme.accent }
 
         // No access to Apple Music set up yet: a MusicKit key, or the web
         // player's token as an opt-in.

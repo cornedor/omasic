@@ -11,6 +11,8 @@
 #include <QtTest>
 
 #include "applemusic.h"
+#include "artworkpalette.h"
+#include "audiolevels.h"
 #include "developertoken.h"
 #include "mpris.h"
 #include "outputs.h"
@@ -390,6 +392,98 @@ private slots:
         AudioOutputs outputs("omasic", "/nonexistent/pactl");
         outputs.refresh();
         QTRY_VERIFY(!outputs.error().isEmpty());
+    }
+
+    void levelsHearWhichBandIsPlaying() {
+        const auto tone = [](double hz) {
+            QVector<float> samples(AudioLevels::WindowSize);
+            for (int i = 0; i < samples.size(); ++i)
+                samples[i] = float(0.5 * std::sin(2 * M_PI * hz * i / AudioLevels::SampleRate));
+            return AudioLevels::measure(samples);
+        };
+        const AudioLevels::Bands low = tone(90), middle = tone(900), top = tone(6000);
+        QVERIFY(low.bass > 10 * low.mid && low.bass > 10 * low.high);
+        QVERIFY(middle.mid > 10 * middle.bass && middle.mid > 10 * middle.high);
+        QVERIFY(top.high > 10 * top.bass && top.high > 10 * top.mid);
+
+        const AudioLevels::Bands silence = AudioLevels::measure(QVector<float>(AudioLevels::WindowSize, 0));
+        QCOMPARE(silence.bass, 0.0f);
+    }
+
+    void levelsFollowTheMusicWhateverTheVolume() {
+        // A quiet track fills the picture as much as a loud one.
+        for (float volume : {0.01f, 1.0f}) {
+            AudioLevels levels("omasic");
+            for (int i = 0; i < 30; ++i)
+                levels.advance({volume, volume * 0.5f, 0}, 0.016);
+            QVERIFY2(levels.bass() > 0.9, qPrintable(QString::number(levels.bass())));
+            QCOMPARE(levels.high(), 0.0);
+
+            // Silence lets go slowly, without a jump.
+            levels.advance({}, 0.016);
+            QVERIFY(levels.bass() > 0.8);
+            for (int i = 0; i < 200; ++i)
+                levels.advance({}, 0.016);
+            QVERIFY(levels.bass() < 0.01);
+        }
+    }
+
+    void levelsPulseOnABeat() {
+        AudioLevels levels("omasic");
+        // The first loud bass sets the scale; steady bass after it is no beat.
+        for (int i = 0; i < 120; ++i)
+            levels.advance({1.0f, 0, 0}, 0.016);
+        QVERIFY(levels.beat() < 0.05);
+        for (int i = 0; i < 60; ++i)
+            levels.advance({0.1f, 0, 0}, 0.016);
+        levels.advance({1.0f, 0, 0}, 0.016);
+        QCOMPARE(levels.beat(), 1.0);
+        levels.advance({0.1f, 0, 0}, 0.016);
+        QVERIFY(levels.beat() < 1.0 && levels.beat() > 0.8);
+    }
+
+    void levelsReportAMissingRecorder() {
+        QTemporaryDir directory;
+        // A pactl that lists one stream of ours, and no pw-cat to record it.
+        const QString pactl = directory.filePath("pactl");
+        write(pactl, "#!/bin/sh\necho '[{\"index\": 7, \"properties\": {\"application.name\": \"omasic\"}}]'\n");
+        QFile::setPermissions(pactl, QFile::ReadOwner | QFile::ExeOwner);
+        AudioLevels levels("omasic", pactl, "/nonexistent/pw-cat");
+        levels.setActive(true);
+        QTRY_VERIFY(!levels.error().isEmpty());
+        levels.setActive(false);
+    }
+
+    void paletteTakesTheArtworksColors() {
+        // Mostly blue, a good part red, and gray that doesn't count.
+        QImage cover(40, 40, QImage::Format_RGB32);
+        cover.fill(QColor("#808080"));
+        for (int y = 0; y < 40; ++y) {
+            for (int x = 0; x < 24; ++x)
+                cover.setPixelColor(x, y, QColor("#1040d0"));
+            for (int x = 24; x < 34; ++x)
+                cover.setPixelColor(x, y, QColor("#c01818"));
+        }
+        const QList<QColor> colors = ArtworkPalette::extract(cover, QColor("#00ff00"));
+        QCOMPARE(colors.size(), 3);
+        QVERIFY2(qAbs(colors.at(0).hsvHue() - 225) < 12, qPrintable(colors.at(0).name()));
+        const int red = colors.at(1).hsvHue();
+        QVERIFY2(red < 12 || red > 348, qPrintable(colors.at(1).name()));
+        // Dark artwork still paints with light.
+        QVERIFY(colors.at(0).valueF() > 0.9 && colors.at(1).valueF() > 0.9);
+        // The third is a neighbor of the main color, not the fallback.
+        QVERIFY2(qAbs(colors.at(2).hsvHue() - 225) < 60, qPrintable(colors.at(2).name()));
+    }
+
+    void paletteFallsBackToTheAccent() {
+        QImage gray(16, 16, QImage::Format_RGB32);
+        gray.fill(QColor("#404040"));
+        for (const QImage &cover : {gray, QImage()}) {
+            const QList<QColor> colors = ArtworkPalette::extract(cover, QColor("#00c040"));
+            QCOMPARE(colors.size(), 3);
+            QVERIFY2(qAbs(colors.at(0).hsvHue() - 140) < 3, qPrintable(colors.at(0).name()));
+            QVERIFY(colors.at(1) != colors.at(0) && colors.at(2) != colors.at(1));
+        }
     }
 
     void mprisLoopStatusMapsRepeat() {

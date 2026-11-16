@@ -20,6 +20,8 @@
 #include <QtWebEngineQuick/QtWebEngineQuick>
 
 #include "applemusic.h"
+#include "artworkpalette.h"
+#include "audiolevels.h"
 #include "developertoken.h"
 #include "mpris.h"
 #include "outputs.h"
@@ -103,9 +105,13 @@ int main(int argc, char *argv[]) {
     outputs.refresh();
     // Each track can open a new stream on the system default; move it as it
     // starts when another device is chosen.
+    AudioLevels levels(app.applicationName());
+    ArtworkPalette artworkPalette(&network);
     QObject::connect(&player, &Player::stateChanged, &app, [&] {
         if (player.isPlaying() && !outputs.selected().isEmpty())
             outputs.apply();
+        if (player.isPlaying())
+            levels.reconnect();
     });
 
     QObject::connect(&developerToken, &DeveloperToken::changed, &app, [&] {
@@ -143,6 +149,8 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty("player", &player);
     engine.rootContext()->setContextProperty("mpris", &mpris);
     engine.rootContext()->setContextProperty("outputs", &outputs);
+    engine.rootContext()->setContextProperty("levels", &levels);
+    engine.rootContext()->setContextProperty("artworkPalette", &artworkPalette);
     engine.load(QUrl("qrc:/Main.qml"));
     if (engine.rootObjects().isEmpty())
         return 1;

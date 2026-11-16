@@ -19,6 +19,8 @@ Popup {
         ["+ −", qsTr("Volume up or down")],
         ["U", qsTr("Show or hide the queue")],
         ["O", qsTr("Choose the output device")],
+        ["V", qsTr("Show or hide the visualizer")],
+        ["G", qsTr("Visualizer: characters or plain light")],
         ["A", qsTr("Go to the playing album")],
         ["Shift A", qsTr("Go to the playing artist")],
         ["/", qsTr("Search")],

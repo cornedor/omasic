@@ -7,6 +7,8 @@ INCLUDEPATH += ../src
 
 HEADERS += \
     ../src/applemusic.h \
+    ../src/artworkpalette.h \
+    ../src/audiolevels.h \
     ../src/developertoken.h \
     ../src/mpris.h \
     ../src/outputs.h \
@@ -18,6 +20,8 @@ HEADERS += \
 SOURCES += \
     omasic_tests.cpp \
     ../src/applemusic.cpp \
+    ../src/artworkpalette.cpp \
+    ../src/audiolevels.cpp \
     ../src/developertoken.cpp \
     ../src/mpris.cpp \
     ../src/outputs.cpp \
