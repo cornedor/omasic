@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Omasic
+Comment=Play your Apple Music library
+Comment[nl]=Speel je Apple Music-bibliotheek af
+Exec=omasic
+Icon=omasic
+Terminal=false
+Categories=AudioVideo;Audio;Player;
+StartupWMClass=omasic

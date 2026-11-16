@@ -1,0 +1,29 @@
+<RCC>
+    <qresource prefix="/">
+        <file alias="Main.qml">Main.qml</file>
+        <file alias="ActionButton.qml">ActionButton.qml</file>
+        <file alias="AppSidebar.qml">AppSidebar.qml</file>
+        <file alias="Glyph.qml">Glyph.qml</file>
+        <file alias="HelpOverlay.qml">HelpOverlay.qml</file>
+        <file alias="IconButton.qml">IconButton.qml</file>
+        <file alias="ItemMenu.qml">ItemMenu.qml</file>
+        <file alias="ItemRow.qml">ItemRow.qml</file>
+        <file alias="KeyCap.qml">KeyCap.qml</file>
+        <file alias="KeyForm.qml">KeyForm.qml</file>
+        <file alias="LibraryPage.qml">LibraryPage.qml</file>
+        <file alias="NowPlayingBar.qml">NowPlayingBar.qml</file>
+        <file alias="OutputMenu.qml">OutputMenu.qml</file>
+        <file alias="QueuePanel.qml">QueuePanel.qml</file>
+        <file alias="RoundedImage.qml">RoundedImage.qml</file>
+        <file alias="SettingsPage.qml">SettingsPage.qml</file>
+        <file alias="ShelfCard.qml">ShelfCard.qml</file>
+        <file alias="ThemedSlider.qml">ThemedSlider.qml</file>
+        <file alias="ThemedSwitch.qml">ThemedSwitch.qml</file>
+        <file alias="TokenSetup.qml">TokenSetup.qml</file>
+        <file alias="WebPlayer.qml">WebPlayer.qml</file>
+        <file alias="WheelScroller.qml">WheelScroller.qml</file>
+        <file alias="player.html">player.html</file>
+        <file alias="i18n/en.json">i18n/en.json</file>
+        <file alias="i18n/nl.json">i18n/nl.json</file>
+    </qresource>
+</RCC>

@@ -1,0 +1,10 @@
+{
+  "%n songs": {
+    "one": "%n song",
+    "other": "%n songs"
+  },
+  "%n minutes": {
+    "one": "%n minute",
+    "other": "%n minutes"
+  }
+}

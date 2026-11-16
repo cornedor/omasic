@@ -1,0 +1,25 @@
+pkgname=omasic
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Apple Music player for Omarchy'
+arch=('x86_64' 'aarch64')
+license=('MIT')
+depends=('qt6-base' 'qt6-declarative' 'qt6-wayland' 'qt6-webengine' 'qt6-webchannel' 'openssl')
+optdepends=('widevine: playing Apple Music streams, which are DRM-protected'
+            'libpulse: choosing the output device (pactl)')
+makedepends=('gcc' 'make')
+source=()
+sha256sums=()
+
+build() {
+  cd "$startdir/.."
+  ./bin/build
+}
+
+package() {
+  cd "$startdir/.."
+  install -Dm755 build/omasic "$pkgdir/usr/bin/omasic"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 "$startdir/omasic.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/omasic.svg"
+  install -Dm644 "$startdir/omasic.desktop" "$pkgdir/usr/share/applications/omasic.desktop"
+}

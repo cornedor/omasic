@@ -1,0 +1,169 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"></head>
+<body>
+<script>
+/*QWEBCHANNEL*/
+</script>
+<script>
+'use strict';
+
+// The hidden bridge between Omasic and MusicKit JS. With a token signed by
+// the user's own MusicKit key it loads from localhost; with the web player's
+// token (an opt-in) from music.apple.com, the only place Apple accepts that
+// token.
+const developerToken = "%DEVELOPER_TOKEN%";
+let player = null;
+let music = null;
+
+function report(method, ...args) {
+  if (player) player[method](...args);
+}
+
+function describe(error) {
+  if (!error) return 'unknown error';
+  return String(error.message || error.description || error.errorCode || error);
+}
+
+async function supportsWidevine() {
+  try {
+    await navigator.requestMediaKeySystemAccess('com.widevine.alpha', [{
+      initDataTypes: ['cenc'],
+      audioCapabilities: [{contentType: 'audio/mp4; codecs="mp4a.40.2"'}],
+    }]);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function loadMusicKit() {
+  return new Promise((resolve, reject) => {
+    document.addEventListener('musickitloaded', resolve, {once: true});
+    const script = document.createElement('script');
+    script.src = 'https://js-cdn.music.apple.com/musickit/v3/musickit.js';
+    script.onerror = () => reject(new Error('MusicKit JS could not be loaded'));
+    document.head.appendChild(script);
+  });
+}
+
+function authorization() {
+  return {
+    authorized: music.isAuthorized,
+    userToken: music.musicUserToken || '',
+    storefront: music.storefrontId || '',
+  };
+}
+
+// A queue item in the shape the app uses for tracks.
+function describeItem(item) {
+  const attributes = (item && item.attributes) || {};
+  const playParams = attributes.playParams || {};
+  return {
+    type: 'song',
+    playId: String(playParams.catalogId || playParams.id || item.id || ''),
+    title: attributes.name || item.title || '',
+    artist: attributes.artistName || '',
+    album: attributes.albumName || '',
+    durationMs: attributes.durationInMillis || 0,
+    artwork: (attributes.artwork && attributes.artwork.url) || '',
+  };
+}
+
+function reportQueue() {
+  const items = music.queue && music.queue.items ? music.queue.items : [];
+  // Songs autoplay added after the queue ran out are marked, so the queue
+  // panel can show them apart.
+  const autoplay = new Set(((music.queue && music.queue.autoplayItems) || []).map(item => item.id));
+  report('reportQueue', items.map(item => Object.assign(describeItem(item), {isAutoplay: autoplay.has(item.id)})),
+         music.queue ? music.queue.position : -1);
+}
+
+function reportNowPlaying() {
+  if (music.nowPlayingItem) report('reportNowPlaying', describeItem(music.nowPlayingItem));
+}
+
+function reportTime() {
+  report('reportTime', music.currentPlaybackTime || 0, music.currentPlaybackDuration || 0);
+}
+
+const commands = {
+  async signIn() {
+    await music.authorize();
+    report('reportAuthorization', authorization());
+  },
+  async signOut() {
+    await music.unauthorize();
+    report('reportAuthorization', authorization());
+  },
+  async play({ids, index, container}) {
+    // Queueing the album or playlist itself, like Apple's own player, tells
+    // Apple where the song was played from, for Recently Played.
+    if (container && Object.keys(container).length) {
+      await music.setQueue(Object.assign({startPlaying: true}, container));
+      return;
+    }
+    await music.setQueue({songs: ids, startWith: index, startPlaying: true});
+  },
+  async station({id}) {
+    await music.setQueue({station: id, startPlaying: true});
+  },
+  async insert({descriptor, where}) {
+    // An empty queue has nothing to go after: play it instead.
+    if (!music.queue || music.queue.isEmpty) {
+      await music.setQueue(Object.assign({startPlaying: true}, descriptor));
+      return;
+    }
+    if (where === 'next') await music.playNext(descriptor);
+    else await music.playLater(descriptor);
+    reportQueue();
+  },
+  async jump({index}) { await music.changeToMediaAtIndex(index); },
+  async resume() { await music.play(); },
+  async pause() { music.pause(); },
+  async stop() { await music.stop(); },
+  async next() { await music.skipToNextItem(); },
+  async previous() { await music.skipToPreviousItem(); },
+  async seek({seconds}) { await music.seekToTime(seconds); },
+  async volume({value}) { music.volume = value; },
+  async shuffle({on}) { music.shuffleMode = on ? MusicKit.PlayerShuffleMode.songs : MusicKit.PlayerShuffleMode.off; },
+  async repeat({mode}) { music.repeatMode = mode; },
+  async autoplay({on}) { music.autoplayEnabled = on; },
+  async bitrate({kbps}) { music.bitrate = kbps; },
+};
+
+new QWebChannel(qt.webChannelTransport, async channel => {
+  player = channel.objects.player;
+  player.command.connect(async (name, args) => {
+    if (!music || !commands[name]) return;
+    try {
+      await commands[name](args || {});
+    } catch (error) {
+      report('reportError', name, describe(error));
+    }
+  });
+
+  let widevine = false;
+  try {
+    widevine = await supportsWidevine();
+    await loadMusicKit();
+    music = await MusicKit.configure({developerToken, app: {name: 'Omasic', build: '0.1.0'}});
+    const states = MusicKit.PlaybackStates;
+    music.addEventListener('playbackStateDidChange', () =>
+      report('reportState', states[music.playbackState] || String(music.playbackState)));
+    music.addEventListener('playbackTimeDidChange', reportTime);
+    music.addEventListener('playbackDurationDidChange', reportTime);
+    music.addEventListener('nowPlayingItemDidChange', () => { reportNowPlaying(); reportQueue(); });
+    music.addEventListener('queueItemsDidChange', reportQueue);
+    music.addEventListener('queuePositionDidChange', reportQueue);
+    music.addEventListener('autoplayEnabledDidChange', () => report('reportAutoplay', !!music.autoplayEnabled));
+    music.addEventListener('authorizationStatusDidChange', () => report('reportAuthorization', authorization()));
+    music.addEventListener('mediaPlaybackError', event => report('reportError', 'playback', describe(event)));
+    report('reportReady', Object.assign({widevine}, authorization()));
+  } catch (error) {
+    report('reportReady', {widevine, error: describe(error)});
+  }
+});
+</script>
+</body>
+</html>
